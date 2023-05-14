@@ -50,6 +50,22 @@ const char *getFileName(const char *command, int comandSize){
     return command + comandSize + 1;
 }
 
+const char *receiveServerAnswer(int s){
+    // recebe um pouco de bytes por vez e ordena dentro do buffer
+    // quando count é 0, todos os bytes chegaram
+    unsigned total = 0;
+    char answer[BUFSZ];
+    while(1){
+        int count = recv(s, answer + total, BUFSZ - total, 0);
+        if(count == 0){
+            // connection terminated.
+            break;
+        }
+        total += count;
+    }
+    return answer;
+}
+
 void selectFile(const char *command){
     const char *fileName = getFileName(command, strlen(COMMAND_SELECT));
     char *fileExtension = getFileExtension(fileName);
@@ -133,20 +149,8 @@ void sendFile(int s){
     fclose(file);
     
 
-    // recebendo o dado
-    // ele recebe um pouco de bytes por vez e ordena dentro do buffer
-    // quando count é 0, todos os bytes chegaram
-    unsigned total = 0;
-    while(1){
-        int count = recv(s, content + total, BUFSZ - total, 0);
-        if(count == 0){
-            // connection terminated.
-            break;
-        }
-        total += count;
-    }
-
-    printf("received %u bytes\n", total);
+    const char *answer = receiveServerAnswer(s);
+    puts(answer);
     
 }
 

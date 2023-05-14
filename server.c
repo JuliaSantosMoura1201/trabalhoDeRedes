@@ -26,7 +26,7 @@ void closeConnection(int csock){
     exit(EXIT_SUCCESS);
 }
 
-char *getFileName(const char *message){
+const char *getFileName(const char *message){
     const char* start_pos = strstr(message, HEADER_CONTENT_IDENTIFIER);
     if (start_pos == NULL) {
         printf("Erro\n");
@@ -44,21 +44,36 @@ char *getFileName(const char *message){
     return first_part;
 }
 
-void readFile(char *message){
-    char *fileName = getFileName(message);
 
-    FILE *outputFile = fopen(fileName, "w");
-    if (outputFile == NULL) {
-        printf("Erro ao criar o arquivo!\n");
-        return;
+FILE *createFile(const char *fileName){
+    FILE *file = fopen(fileName, "w");
+    if (file == NULL) {
+        printf("error receiving file %s\n", fileName);
     }
 
-    // escreve no arquivo
-    fprintf(outputFile, "Texto a ser escrito no arquivo\n");
+    return file;
+}
 
+
+const char *readFile(char *message){
+    const char *fileName = getFileName(message);
+    
+    // 17 é o tamanho da mensagem de overwritten sem contar o nome do arquivo
+    char *answer = malloc(17 + strlen(fileName));
+
+    // se arquivo não existir
+    if(access(fileName, F_OK) == -1){
+        sprintf(answer, "file %s received\n", fileName);
+    }else{
+        sprintf(answer, "file %s overwritten", fileName);
+    }
+    
+    FILE *file = createFile(fileName);
+
+    fprintf(file, "Texto a ser escrito no arquivo\n");
     // fecha o arquivo
-    fclose(outputFile);
-
+    fclose(file);
+    return answer;
 }
 
 void identifyCommand(char *message, int csock){
@@ -70,10 +85,12 @@ void identifyCommand(char *message, int csock){
 }
 
 void receiveMessage(int csock, char *caddrstr){
-    char buf[BUFSZ];
-    memset(buf, 0, BUFSZ);
-    size_t count = recv(csock, buf, BUFSZ - 1, 0);
-    identifyCommand(buf, csock);
+    char message[BUFSZ];
+    memset(message, 0, BUFSZ);
+
+    size_t count = recv(csock, message, BUFSZ - 1, 0);
+    identifyCommand(message, csock);
+
     // recebi um arquivo
         //verifico se o arquivo já foi recebido
             //true -> 
@@ -82,11 +99,10 @@ void receiveMessage(int csock, char *caddrstr){
         // false ->
                 // armazenar
                 // confirmar recebimento
-    printf("[msg] %s, %d bytes: %s\n", caddrstr, (int)count, buf);
-
-    sprintf(buf, "remote endpoint %.1000s\n", caddrstr);
-    count = send(csock, buf, strlen(buf) + 1, 0);
-    if(count != strlen(buf) + 1){
+    
+    const char *answer = readFile(message);
+    count = send(csock, answer, strlen(answer) + 1, 0);
+    if(count != strlen(answer) + 1){
         logexit("send");
     }
     close(csock);
