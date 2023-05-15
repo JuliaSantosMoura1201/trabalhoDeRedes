@@ -82,10 +82,13 @@ char *processMessage(char *message){
     
     FILE *file = createFile(fileName);
     const char *content = getMessageContent(message);
-    
-    printf("\nMessage: %s\n", message);
-    printf("\nContent: %s\n", content);
-    fprintf(file, "%s", content);
+    int finalContentSize = strlen(content) - strlen(HEADER_END_IDENTIFIER) + 1;
+    char finalContent[finalContentSize];
+
+    strncpy(finalContent, content, finalContentSize);
+    finalContent[finalContentSize - 1] = '\0';
+
+    fprintf(file, "%s", finalContent);
 
     fclose(file);
     return answer;
@@ -169,7 +172,6 @@ int main(int argc, char **argv){
 
 /*
 TODO:
-    REMOVER END ANTES DE ESCREVER ARQUIVO
     CONSEGUIR USAR OUTROS COMANDOS DEPOIS DO SEND
 TESTAR:
     FUNCIONAMENNTO IPV4
