@@ -54,10 +54,22 @@ FILE *createFile(const char *fileName){
     return file;
 }
 
+const char *getMessageContent(char * message){
+    const char* content;
 
-const char *readFile(char *message){
+    content = strstr(message, HEADER_CONTENT_IDENTIFIER);
+
+    if (content != NULL) {
+        content += strlen(HEADER_CONTENT_IDENTIFIER);
+    } else {
+        printf("error receiving file\n");
+    }
+    return content;
+}
+
+char *processMessage(char *message){
     const char *fileName = getFileName(message);
-    
+
     // 17 é o tamanho da mensagem de overwritten sem contar o nome do arquivo
     char *answer = malloc(17 + strlen(fileName));
 
@@ -69,9 +81,12 @@ const char *readFile(char *message){
     }
     
     FILE *file = createFile(fileName);
+    const char *content = getMessageContent(message);
+    
+    printf("\nMessage: %s\n", message);
+    printf("\nContent: %s\n", content);
+    fprintf(file, "%s", content);
 
-    fprintf(file, "Texto a ser escrito no arquivo\n");
-    // fecha o arquivo
     fclose(file);
     return answer;
 }
@@ -80,7 +95,12 @@ void identifyCommand(char *message, int csock){
     if (strncmp(message, COMMAND_EXIT, strlen(COMMAND_EXIT)) == 0) {
         closeConnection(csock);
     } else {
-        readFile(message);
+        char *answer = processMessage(message);
+        size_t count = send(csock, answer, strlen(answer) + 1, 0);
+        if(count != strlen(answer) + 1){
+            logexit("send");
+        }
+        free(answer);
     }
 }
 
@@ -88,24 +108,8 @@ void receiveMessage(int csock, char *caddrstr){
     char message[BUFSZ];
     memset(message, 0, BUFSZ);
 
-    size_t count = recv(csock, message, BUFSZ - 1, 0);
+    recv(csock, message, BUFSZ - 1, 0);
     identifyCommand(message, csock);
-
-    // recebi um arquivo
-        //verifico se o arquivo já foi recebido
-            //true -> 
-                //sobreescrever
-                // confirmar sobreescrita
-        // false ->
-                // armazenar
-                // confirmar recebimento
-    
-    const char *answer = readFile(message);
-    count = send(csock, answer, strlen(answer) + 1, 0);
-    if(count != strlen(answer) + 1){
-        logexit("send");
-    }
-    close(csock);
 }
 
 int main(int argc, char **argv){
@@ -156,6 +160,18 @@ int main(int argc, char **argv){
         printf("[log] connection from %s\n", caddrstr);
 
         receiveMessage(csock, caddrstr);
+
+        close(csock);
     }
     exit(EXIT_SUCCESS);
 }
+
+
+/*
+TODO:
+    REMOVER END ANTES DE ESCREVER ARQUIVO
+    CONSEGUIR USAR OUTROS COMANDOS DEPOIS DO SEND
+TESTAR:
+    FUNCIONAMENNTO IPV4
+    ENVIO DE ARQUIVO Q N EXISTE NO SERVIDOR
+*/

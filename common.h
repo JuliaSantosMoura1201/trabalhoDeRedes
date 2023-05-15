@@ -4,7 +4,7 @@
 #include <arpa/inet.h>
 
 #define HEADER_CONTENT_IDENTIFIER "\\start"
-#define HEADER_END_IDENTIFIER "\\end"
+#define HEADER_END_IDENTIFIER "end"
 #define COMMAND_EXIT "exit"
 
 void logexit(const char *msg);

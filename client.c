@@ -54,7 +54,7 @@ const char *receiveServerAnswer(int s){
     // recebe um pouco de bytes por vez e ordena dentro do buffer
     // quando count é 0, todos os bytes chegaram
     unsigned total = 0;
-    char answer[BUFSZ];
+    char *answer = malloc(BUFSZ);
     while(1){
         int count = recv(s, answer + total, BUFSZ - total, 0);
         if(count == 0){
@@ -64,6 +64,16 @@ const char *receiveServerAnswer(int s){
         total += count;
     }
     return answer;
+}
+
+void replaceNullTerminator(char* buffer) {
+
+    int lastCharIndex = strlen(buffer) - 1;
+
+    // Verifica se o último caractere é '\0'
+    if (buffer[lastCharIndex] == '\0') {
+        buffer[lastCharIndex] = '\\'; // Barra invertida
+    }
 }
 
 void selectFile(const char *command){
@@ -125,12 +135,12 @@ void sendFile(int s){
         return;
     }
 
+    replaceNullTerminator(buffer);
     // concatena o nome do arquivo\start\content\end
     long contentSize = strlen(fileToBeSend) + strlen(HEADER_CONTENT_IDENTIFIER) + strlen(buffer) + strlen(HEADER_END_IDENTIFIER);
     char *content = malloc(contentSize);
     sprintf(content, "%s%s%s%s", fileToBeSend, HEADER_CONTENT_IDENTIFIER, buffer, HEADER_END_IDENTIFIER);
-    printf("%s\n", content);
-
+    
     int totalSent = 0;
     while (totalSent < contentSize) {
         int count = send(s, content + totalSent, contentSize - totalSent, 0);
@@ -143,15 +153,13 @@ void sendFile(int s){
         totalSent += count;
     }
 
-
     free(buffer);
     free(content);
     fclose(file);
-    
 
     const char *answer = receiveServerAnswer(s);
     puts(answer);
-    
+    return;
 }
 
 void exitConnection(int s){
@@ -160,25 +168,12 @@ void exitConnection(int s){
     if(count != clientMsgSize){
         logexit("send");
     }
-
-    // recebendo o dado
-    // ele recebe um pouco de bytes por vez e ordena dentro do buffer
-    // quando count é 0, todos os bytes chegaram
-    unsigned total = 0;
-    char answer[BUFSZ];
-    while(1){
-        count = recv(s, answer + total, BUFSZ - total, 0);
-        if(count == 0){
-            // connection terminated.
-            break;
-        }
-        total += count;
-    }
-
+    
+    const char *answer = receiveServerAnswer(s);
     puts(answer);
-
     close(s);
     exit(EXIT_SUCCESS);
+    return;
 }
 
 void identifyCommand(char *command, int s){
@@ -232,25 +227,7 @@ int main(int argc, char **argv){
 
         fgets(clientMsg, BUFSZ -1, stdin);
         identifyCommand(clientMsg, s);
-
     }
     close(s);
     exit(EXIT_SUCCESS);
 }
-
-
-// ver se é um select file -OK
-        //verifico a extensão -OK
-            // se n tiver arquivo 
-                // logo erro -OK
-            //se a extensão for válida
-                // eu valido se o arquivo existe -OK
-                    // true -> mando mensagem confirmando que foi selecionado 
-                        //e eu armazeno
-                    // false -> eu logo erro -OK
-
-    // ver se é um send file
-        // verifico se eu tenho algum arquivo salvo (já foi selecionado)
-        //envio
-    // exit
-        // termino a conexão
