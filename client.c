@@ -50,22 +50,6 @@ const char *getFileName(const char *command, int comandSize){
     return command + comandSize + 1;
 }
 
-const char *receiveServerAnswer(int s){
-    // recebe um pouco de bytes por vez e ordena dentro do buffer
-    // quando count é 0, todos os bytes chegaram
-    unsigned total = 0;
-    char *answer = malloc(BUFSZ);
-    while(1){
-        int count = recv(s, answer + total, BUFSZ - total, 0);
-        if(count == 0){
-            // connection terminated.
-            break;
-        }
-        total += count;
-    }
-    return answer;
-}
-
 void replaceNullTerminator(char* buffer) {
 
     int lastCharIndex = strlen(buffer) - 1;
@@ -157,7 +141,11 @@ void sendFile(int s){
     free(content);
     fclose(file);
 
-    const char *answer = receiveServerAnswer(s);
+    char answer[BUFSZ]; 
+    ssize_t count = recv(s, answer, BUFSZ - 1, 0);
+    if(count < 0){
+        logexit("Ocorreu um erro ou a conexão foi encerrada\n");
+    }
     puts(answer);
     return;
 }
@@ -169,11 +157,14 @@ void exitConnection(int s){
         logexit("send");
     }
     
-    const char *answer = receiveServerAnswer(s);
+    char answer[BUFSZ]; 
+    count = recv(s, answer, BUFSZ - 1, 0);
+    if(count < 0){
+        logexit("Ocorreu um erro ou a conexão foi encerrada\n");
+    }
     puts(answer);
     close(s);
     exit(EXIT_SUCCESS);
-    return;
 }
 
 void identifyCommand(char *command, int s){
@@ -216,6 +207,7 @@ int main(int argc, char **argv){
     }
 
     char addrstr[BUFSZ];
+    //memset(addrstr, 0, BUFSZ); // avaliar se precisa
     addrtostr(addr, addrstr, BUFSZ);
     printf("connected to %s\n", addrstr);
 
@@ -223,10 +215,12 @@ int main(int argc, char **argv){
     while(1){
         char clientMsg[BUFSZ];
         memset(clientMsg, 0, BUFSZ);
+        // verificar se precisa limpar buffers
         printf("mensagem> ");
 
         fgets(clientMsg, BUFSZ -1, stdin);
         identifyCommand(clientMsg, s);
+        //avaliar se precisa limpar buffer
     }
     close(s);
     exit(EXIT_SUCCESS);

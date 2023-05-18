@@ -82,9 +82,9 @@ char *processMessage(char *message){
     
     FILE *file = createFile(fileName);
     const char *content = getMessageContent(message);
+
     int finalContentSize = strlen(content) - strlen(HEADER_END_IDENTIFIER) + 1;
     char finalContent[finalContentSize];
-
     strncpy(finalContent, content, finalContentSize);
     finalContent[finalContentSize - 1] = '\0';
 
@@ -99,9 +99,17 @@ void identifyCommand(char *message, int csock){
         closeConnection(csock);
     } else {
         char *answer = processMessage(message);
-        size_t count = send(csock, answer, strlen(answer) + 1, 0);
-        if(count != strlen(answer) + 1){
-            logexit("send");
+
+        int totalSent = 0;
+        int contentSize = strlen(answer);
+        while (totalSent < contentSize) {
+            int count = send(csock, answer + totalSent, contentSize - totalSent, 0);
+            if (count == -1) {
+                printf("Erro ao enviar a resposta\n");
+                free(answer);
+                return;
+            }
+            totalSent += count;
         }
         free(answer);
     }
@@ -157,15 +165,17 @@ int main(int argc, char **argv){
         if(csock == -1){
             logexit("accept");
         }
-
         char caddrstr[BUFSZ];
         addrtostr(caddr, caddrstr, BUFSZ);
         printf("[log] connection from %s\n", caddrstr);
 
-        receiveMessage(csock, caddrstr);
-
+       while(1){
+            receiveMessage(csock, caddrstr);
+        }
+        
         close(csock);
     }
+    
     exit(EXIT_SUCCESS);
 }
 
