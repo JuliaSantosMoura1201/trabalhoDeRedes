@@ -8,13 +8,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <regex.h>
 
 #define BUFSZ 1024
 #define MAX_SUBSTRINGS 3
 #define COMMAND_SELECT "select file"
 #define COMMAND_SEND "send file"
 
-char extensions[6][4] = {"txt", "c", "cpp", "py", "tex", "java"};
 char fileToBeSend[BUFSZ];
 
 bool isFileExtensionValid(const char *fileExtension){
@@ -75,7 +75,7 @@ void selectFile(const char *command){
     }
 
     if(access(fileName, F_OK) == -1){
-        printf("%s does not exist\n", fileName);
+        printf("%s do not exist\n", fileName);
         return;
     }
     
@@ -121,9 +121,9 @@ void sendFile(int s){
 
     replaceNullTerminator(buffer);
     // concatena o nome do arquivo\start\content\end
-    long contentSize = strlen(fileToBeSend) + strlen(HEADER_CONTENT_IDENTIFIER) + strlen(buffer) + strlen(HEADER_END_IDENTIFIER);
+    long contentSize = strlen(fileToBeSend) + strlen(buffer) + strlen(HEADER_END_IDENTIFIER);
     char *content = malloc(contentSize);
-    sprintf(content, "%s%s%s%s", fileToBeSend, HEADER_CONTENT_IDENTIFIER, buffer, HEADER_END_IDENTIFIER);
+    sprintf(content, "%s%s%s", fileToBeSend, buffer, HEADER_END_IDENTIFIER);
     
     int totalSent = 0;
     while (totalSent < contentSize) {

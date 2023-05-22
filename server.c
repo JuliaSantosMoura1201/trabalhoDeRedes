@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#define BUFSZ 1024
+#define BUFSZ 500
 
 void usage(int argc, char **argv){
    printf("usage: %s <v4|v6> <server port>\n", argv[0]);
@@ -26,25 +26,6 @@ void closeConnection(int csock){
     exit(EXIT_SUCCESS);
 }
 
-const char *getFileName(const char *message){
-    const char* start_pos = strstr(message, HEADER_CONTENT_IDENTIFIER);
-    if (start_pos == NULL) {
-        printf("Erro\n");
-    }
-    
-    size_t start_index = start_pos - message;
-    char* first_part = malloc(start_index + 1);
-    if (first_part == NULL) {
-        printf("Erro\n");
-    }
-    
-    strncpy(first_part, message, start_index); // copiar a parte anterior da string
-    first_part[start_index] = '\0'; // garantir que a string termina com null
-    
-    return first_part;
-}
-
-
 FILE *createFile(const char *fileName){
     FILE *file = fopen(fileName, "w");
     if (file == NULL) {
@@ -54,34 +35,52 @@ FILE *createFile(const char *fileName){
     return file;
 }
 
-const char *getMessageContent(char * message){
-    const char* content;
-
-    content = strstr(message, HEADER_CONTENT_IDENTIFIER);
-
-    if (content != NULL) {
-        content += strlen(HEADER_CONTENT_IDENTIFIER);
-    } else {
-        printf("error receiving file\n");
+int searchForExtension(const char* buffer, char* fileName, size_t index){
+    for(int i = 0; i < 6; i++){
+        int size = index + strlen(extensions[i]) + 1;
+        char fileNameWithExtension[BUFSZ];
+        strncpy(fileNameWithExtension, buffer, size);
+        fileNameWithExtension[size] = '\0';
+        
+        char *content = malloc(size);
+        sprintf(content, "%s.%s", fileName, extensions[i]);
+        if(strcmp(fileNameWithExtension, content) == 0){
+            return size;
+        }
+        free(content);
     }
-    return content;
+    return index;
 }
 
 char *processMessage(char *message){
-    const char *fileName = getFileName(message);
+    // obtem o nome do arquivo com a extensão
+    const char* extension = strchr(message, '.');
+    size_t index = extension - message;
+
+    char *fileName = malloc(index + 1);
+    strncpy(fileName, message, index);
+    (fileName)[index] = '\0';
+    
+    int newIndex = searchForExtension(message, fileName, index);
+    char *newFileName = malloc(newIndex + 1);
+    strncpy(newFileName, message, newIndex);
+    (newFileName)[newIndex] = '\0';
+
+    // obtém o conteúdo do arquivo
+    char *content = malloc(strlen(message + newIndex) + 1);
+    strcpy(content, message + newIndex);
 
     // 17 é o tamanho da mensagem de overwritten sem contar o nome do arquivo
-    char *answer = malloc(17 + strlen(fileName));
+    char *answer = malloc(17 + strlen(newFileName));
 
     // se arquivo não existir
-    if(access(fileName, F_OK) == -1){
-        sprintf(answer, "file %s received\n", fileName);
+    if(access(newFileName, F_OK) == -1){
+        sprintf(answer, "file %s received\n", newFileName);
     }else{
-        sprintf(answer, "file %s overwritten", fileName);
+        sprintf(answer, "file %s overwritten", newFileName);
     }
     
-    FILE *file = createFile(fileName);
-    const char *content = getMessageContent(message);
+    FILE *file = createFile(newFileName);
 
     int finalContentSize = strlen(content) - strlen(HEADER_END_IDENTIFIER) + 1;
     char finalContent[finalContentSize];
@@ -169,7 +168,7 @@ int main(int argc, char **argv){
         addrtostr(caddr, caddrstr, BUFSZ);
         printf("[log] connection from %s\n", caddrstr);
 
-       while(1){
+        while(1){
             receiveMessage(csock, caddrstr);
         }
         
